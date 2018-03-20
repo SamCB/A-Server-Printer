@@ -38,6 +38,9 @@ from serial import Serial
 import time
 import sys
 
+def bchr(i):
+    return bytes([i])
+
 class Adafruit_Thermal(Serial):
 
     resumeTime      =   0.0
@@ -186,7 +189,7 @@ class Adafruit_Thermal(Serial):
             self.timeoutWait()
             self.timeoutSet(len(args) * self.byteTime)
             for arg in args:
-            	super(Adafruit_Thermal, self).write(chr(arg))
+            	super(Adafruit_Thermal, self).write(bchr(arg))
 
     # Override write() method to keep track of paper feed.
     def write(self, *data):
@@ -345,7 +348,7 @@ class Adafruit_Thermal(Serial):
             	for i in range(n):
             		sys.stdout.write(text[i])
             else:
-            	super(Adafruit_Thermal, self).write(chr(n))
+            	super(Adafruit_Thermal, self).write(bchr(n))
             	for i in range(n):
             		super(Adafruit_Thermal,
             		  self).write(text[i])
@@ -535,7 +538,7 @@ class Adafruit_Thermal(Serial):
             			  chr(bitmap[i]))
             		else:
             			super(Adafruit_Thermal,
-            			  self).write(chr(bitmap[i]))
+            			  self).write(bchr(bitmap[i]))
             		i += 1
             	i += rowBytes - rowBytesClipped
             self.timeoutSet(chunkHeight * self.dotPrintTime)
@@ -726,11 +729,11 @@ class Adafruit_Thermal(Serial):
     # with existing code written for the Arduino library.
     def print(self, *args, **kwargs):
         for arg in args:
-            self.write(str(arg))
+            self.write(str(arg).encode())
 
     # For Arduino code compatibility again
     def println(self, *args, **kwargs):
         for arg in args:
-            self.write(str(arg))
-        self.write('\n')
+            self.write(str(arg).encode())
+        self.write(b'\n')
 
