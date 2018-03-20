@@ -28,13 +28,17 @@ def setup(config):
     # Printer Setup
     p = config['PRINTER_CONNECTION']
     printer = Printer(p['port'], p['baudrate'], timeout=p['timeout'])
+    printer.feed(1)
 
     # Button Setup
     buttonA = Button(config['BUTTON_A'])
     buttonB = Button(config['BUTTON_B'])
 
     buttonA.subscribe(lambda _: ledA.flash(1))
+    buttonA.subscribe(lambda c: printer.println('c: {}'.format(c)))
+
     buttonB.subscribe(lambda _: ledB.flash(1))
+    buttonB.subscribe(lambda c: printer.println('c: {}'.format(c)))
 
 
     return {
