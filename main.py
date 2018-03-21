@@ -76,8 +76,16 @@ if __name__ == "__main__":
     except FileNotFoundError:
         print('No config file found. Read through README for instructions on how to get started.')
     else:
-        val = setup(config)
         try:
+            val = setup(config)
+            val['printer'].format_print("""
+# Hello World!
+
+I really hope *that* you like_what_ is coming out of this printer. It should be
+really ~fantastic~!
+
+🔥🔥🔥
+""")
             input("Any Key to Exit")
         except KeyboardInterrupt:
             pass
