@@ -20,3 +20,27 @@ Currently a work in progress.
 Copy `.config.example.json` to `.config.json`.
 Change variables to your local setup.
 You can add any extra config defined in `DEFAULT_CONFIG` of `main.py`.
+
+## Troubleshooting
+
+* *The printer prints without being told to:*
+
+    Run the config:
+
+        sudo raspi-config
+
+    Go to `5 Interfacing Options` -> `P6 Serial`.
+    Disable login shell over serial but keep serial port hardware enabled.
+    It should display a message:
+
+        The serial login shell is disabled
+        The serial interface is enabled
+
+    Then edit the file `/boot/cmdline.txt`
+
+        sudo nano /boot/cmdline.txt
+
+    And remove any `console=serial0,xxxxxx` style setting.
+    Do not remove `console=tty1`.
+
+    Printing should now behave as expected.
