@@ -53,7 +53,9 @@ def setup(config):
                 printer.async_wait(1)
             printer.async_feed(3)
 
-        response.add_done_callback(print_response)
+        response.add_done_callback(
+            lambda r: printer.batch_print(r.result())
+        )
 
     def clear_server(*_, **__):
         print("CLEARING")
