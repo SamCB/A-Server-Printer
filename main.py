@@ -38,11 +38,22 @@ def setup(config):
     conn = AServerConnection(config['SERVER'], config['PASSWORD'])
 
     def print_from_server(*_, **__):
-        print("Printing")
-        response = conn.read()
-        print(response)
-        printer.println(response)
-        printer.feed(3)
+        response = conn.futures_read()
+
+        def print_response(response):
+            # Since flooding the printer with a heap of data causes a backlog
+            #  and skipped lines, we print only a handful of characters, then
+            #  wait for a second before continuing.
+            # Characters and timing is from rough trial and error. They seem
+            #  to work.
+            subresponse = response.result()
+            while subresponse:
+                printer.async_print(subresponse[:180])
+                subresponse = subresponse[180:]
+                printer.async_wait(1)
+            printer.async_feed(3)
+
+        response.add_done_callback(print_response)
 
     def clear_server(*_, **__):
         print("CLEARING")
@@ -57,7 +68,7 @@ def setup(config):
     buttonA.subscribe(print_from_server)
 
     buttonB.subscribe(lambda _: ledB.flash(1))
-    buttonB.subscribe(lambda c: printer.println('c: {}'.format(c)))
+    buttonB.subscribe(lambda c: printer.async_println('c: {}'.format(c)))
 
 
     return {
@@ -66,8 +77,10 @@ def setup(config):
         'printer': printer, 'conn': conn
     }
 
-def teardown():
+def teardown(val):
     GPIO.cleanup()
+    val['printer'].cleanup()
+    val['conn'].cleanup()
 
 if __name__ == "__main__":
     try:
@@ -78,17 +91,9 @@ if __name__ == "__main__":
     else:
         try:
             val = setup(config)
-            val['printer'].format_print("""
-# Hello World!
-
-I really hope *that* you like_what_ is coming out of this printer. It should be
-really ~fantastic~!
-
-🔥🔥🔥
-""")
             input("Any Key to Exit")
         except KeyboardInterrupt:
             pass
         finally:
-            teardown()
+            teardown(val)
             print()

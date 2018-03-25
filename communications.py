@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import requests
 import json
 
@@ -16,6 +17,7 @@ class AServerConnection:
         self.headers = {
             'auth': password
         }
+        self.executor = ThreadPoolExecutor()
 
     @staticmethod
     def _parse_response(response):
@@ -33,6 +35,9 @@ class AServerConnection:
         response = requests.get(self.endpoint, headers=self.headers)
         return self._parse_response(response)
 
+    def futures_read(self):
+        return self.executor.submit(self.read)
+
     def write(self, note):
         response = requests.post(
             self.endpoint,
@@ -40,5 +45,11 @@ class AServerConnection:
             data=json.dumps({'file': note})
         )
         return self._parse_response(response)
+
+    def futures_write(self, note):
+        return self.executor.submit(self.write, (note,))
+
+    def cleanup(self):
+        self.executor.shutdown()
 
 

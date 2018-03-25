@@ -1,82 +1,53 @@
 from Adafruit_Thermal import Adafruit_Thermal
 
+import threading
+import queue
+import time
+
+class _ShutDownPrinter:
+    pass
+
 class Printer(Adafruit_Thermal):
 
-    def format_print(self, message):
-        for line in message.split("\n"):
-            self._set_heading(line)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-            for c in self._parse_line(line):
-                if c:
-                    self.writeBytes(ord(c))
+        self._print_queue = queue.Queue()
+        self.thread = threading.Thread(target=self._print_from_async_print_queue)
+        self.thread.start()
 
-            self._unset_heading(line)
-            self.normal()
+    def _print_from_async_print_queue(self):
+        while True:
+            try:
+                print_func = self._print_queue.get()
+                print("NEXT ELEMENT IN QUEUE")
+                print(print_func)
+                if isinstance(print_func, _ShutDownPrinter):
+                    break
+                print_func()
+            finally:
+                self._print_queue.task_done()
 
-        self.feed(3)
+    def async_print(self, *args, **kwargs):
+        self._print_queue.put(
+            lambda: self.print(*args, **kwargs)
+        )
 
-    def _set_heading(self, line):
-        # lines that start with "#" become headings
-        if line.strip().startswith("#"):
-            self.doubleHeightOn()
+    def async_println(self, *args, **kwargs):
+        self._print_queue.put(
+            lambda: self.println(*args, **kwargs)
+        )
 
-    def _unset_heading(self, line):
-        # lines that start with "#" become headings
-        if line.strip().startswith("#"):
-            self.doubleHeightOff()
+    def async_feed(self, *args, **kwargs):
+        self._print_queue.put(
+            lambda: self.println(*args, **kwargs)
+        )
 
-    def _parse_line(self, line):
-        liter = enumerate(iter(line))
-        # We need to check what formatting is being used on this line right now
-        line_in_groups = {k: False for k in "*_~"}
-        try:
-            while True:
-                i, c = next(liter)
-                if self._is_escape(c):
-                    # don't parse the next character
-                    i, c = next(liter)
-                else:
-                    c = self._parse_char(i, line, line_in_groups)
-                yield c
+    def async_wait(self, t):
+        self._print_queue.put(lambda: time.sleep(t))
 
-        except StopIteration:
-            pass
-
-    def _is_escape(self, c):
-        return c == "/"
-
-    def _parse_char(self, i, line, line_in_groups):
-        SYMBOLS = {
-            "*": self.BOLD_MASK,
-            "_": self.INVERSE_MASK,
-            "~": self.STRIKE_MASK
-        }
-        is_symbol = False
-        for symbol, mask in SYMBOLS.items():
-            if self._is_group_start(symbol, i, line, line_in_groups[symbol]):
-                self.setPrintMode(mask)
-                line_in_groups[symbol] = True
-                is_symbol = True
-            elif self._is_group_end(symbol, i, line, line_in_groups[symbol]):
-                self.unsetPrintMode(mask)
-                line_in_groups[symbol] = False
-                is_symbol = True
-
-        # If this is a symbol, then we don't actually want to print any character
-        if is_symbol:
-            return ''
-        else:
-            return line[i]
-
-    def _is_group_start(self, symbol, i, line, in_group):
-        char = line[i]
-        if char == symbol and not in_group:
-            # We could be at the start of the group
-            # It's a group if there's another occurance
-            return symbol in line[i+1:]
-        return False
-
-    def _is_group_end(self, symbol, i, line, in_group):
-        char = line[i]
-        return char == symbol and in_group
-
+    def cleanup(self):
+        self._print_queue.put(_ShutDownPrinter())
+        print("Joining thread")
+        self.thread.join()
+        print("And we're outa here")
