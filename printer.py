@@ -46,6 +46,11 @@ class Printer(Adafruit_Thermal):
         self._print_queue.put(lambda: time.sleep(t))
 
     def batch_print(self, message):
+        # Since flooding the printer with a heap of data causes a backlog
+        #  and skipped lines, we print only a handful of characters, then
+        #  wait for a second before continuing.
+        # Characters and timing is from rough trial and error. They seem
+        #  to work.
         message = _clean_message(message)
         while message:
             sub, message = message[:180], message[180:]
