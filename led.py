@@ -1,35 +1,6 @@
 import RPi.GPIO as GPIO
 
 import threading
-import queue
-import time
-
-class _LED_INSTRUCTIONS:
-    """A thread-safe, retrieval blocking, single value store
-
-    Use for passing the most recent instruction to the LED thread
-    """
-    def __init__(self):
-        self._queue = queue.LifoQueue(maxsize=1)
-        self._lock = threading.Lock()
-
-    def kill(self):
-        """Send the KILL_THREAD command over the queue"""
-        self.new_instruction(LED.KILL_THREAD, -1)
-
-    def new_instruction(self, code, interval):
-        """Remove the previous instruction and pass in this one"""
-        with self._lock():
-            while True:
-                try:
-                    self._queue.get()
-                except queue.Empty:
-                    break
-
-            self._queue.put((code, interval))
-
-    def get_instruction(self, timeout):
-        return self._queue.get(timeout=timeout)
 
 class LED:
 
@@ -45,51 +16,8 @@ class LED:
         GPIO.setup(self.pin, GPIO.OUT)
         self._off()
 
-        # Light instructions should
-        self.light_instructions = _LED_INSTRUCTIONS()
-        self.thread = threading.Thread(
-            target=self._light_thread, args=(self.light_instructions)
-        )
-        self.thread.start()
-
-    def _light_thread(self, light_instructions):
-        # a string describing the steps
-        instruction_code = LED.OFF
-        instruction_index = 1
-        instruction_interval = -1
-        while True:
-            try:
-                i = self.light_instructions(timeout=instruction_interval)
-                instruction_code, instruction_interval = i
-                instruction_index = 0
-            except queue.Empty:
-                pass
-
-            if instruction_code == LED.KILL_THREAD:
-                break
-
-            if instruction_index < len(instruction_code):
-                instruction_index = self._run_instruction(
-                        instruction_code, instruction_index
-                )
-            else:
-                # There are no more instructions to perform
-                # Set interval to -1 so that we sleep when next retrieving
-                #  instructions
-                instruction_interval = -1
-
-        self._off()
-
-    def _run_instruction(self, code, index):
-        instruction = code[index]
-        if instruction == LED.ON:
-            self._on()
-        elif instruction == LED.OFF:
-            self._off()
-        elif instruction == LED.REPEAT:
-            return self._run_instruction(code, 0)
-
-        return index + 1
+        self.thread_management_lock = threading.Lock()
+        self.thread = None
 
     def _on(self):
         GPIO.output(self.pin, GPIO.HIGH)
@@ -98,64 +26,96 @@ class LED:
         GPIO.output(self.pin, GPIO.LOW)
 
     def flash(self, wait):
-        self.pattern(wait, '-')
+        """
+        Turn on the LED for the given period of time in seconds
+
+        Return an interrupt function for turning the LED off.
+        """
+        return self.pattern(wait, '-')
 
     def pattern(self, rate, pattern):
-        # Use threading so we don't block other actions
-        def t():
-            for p in pattern:
-                if p == self.ON:
-                    self.on()
-                elif p == self.OFF:
-                    self.off()
-                else:
-                    continue
+        """
+        Flash the LED in a given pattern at the given rate.
 
-                time.sleep(rate)
-            self.off()
+        Return an interrupt function for cancelling the pattern and turning the
+        LED off
+        """
+        with self.thread_management_lock:
+            if self.thread is not None:
+                self.thread.kill()
 
-        thread = threading.Thread(target=t)
-        thread.start()
+            self.thread = _LED_Thread(pattern, rate, self._on, self._off)
+            self.thread.start()
+
+        return self.thread.kill
 
     def repeated_pattern(self, rate, pattern):
-        def t(lock, kill):
-            i = 0
-            while True:
-                with lock:
-                    if kill.is_set():
-                        break
+        """
+        Flash the LED in a given pattern at the given rate, on repeat.
 
-                    p = pattern[i % len(pattern)]
-                    i += 1
+        Return an interrupt function for cancelling the pattern and turning the
+        LED off
+        """
+        return self.pattern(rate, '{}{}'.format(pattern, LED.REPEAT))
 
-                    if p == self.ON:
-                        self.on()
-                    elif p == self.OFF:
-                        self.off()
-                    else:
-                        continue
+    def off(self):
+        with self.thread_management_lock:
+            if self.thread is not None:
+                self.thread.kill()
 
-                time.sleep(rate)
+class _LED_Thread(threading.Thread):
+    """
+    The LED_Thread is a killable thread for independently handling an LED.
 
-            self.off()
+    Naturally, only a single LED should be controlled by any one thread.
+    To take control from a thread, you should first kill it with .kill() and
+    then create a new one providing the same endpoints.
+    """
 
-        def quieten(lock, kill):
-            # Quickly turn off the LED in case we're stuck asleep
-            while True:
-                with lock:
-                    if kill.is_set():
-                        self.off()
-                        break
-                time.sleep(0.2)
+    def __init__(self, instructions, interval, led_on, led_off):
+        if len(instructions) < 1:
+            raise ValueError("Instructions must be at least 1 character in length")
+        if instructions[0] == LED.REPEAT:
+            raise ValueError("First instruction may not be to repeat")
 
-        lock = threading.Lock()
-        kill = threading.Event()
+        super().__init__()
+        self._instructions = instructions
+        self._interval = interval
+        self._on = led_on
+        self._off = led_off
 
-        thread_light = threading.Thread(target=t, args=(lock, kill))
-        thread_quieten = threading.Thread(target=quieten, args=(lock, kill))
-        thread_light.start()
-        thread_quieten.start()
+        self._kill = self.Event()
 
-        # Return a trigger to kill pattern calling
-        return kill.set
+    def run(self):
+        self._off()
 
+        index = 0
+        while True:
+            index = self._run_instruction(index)
+
+            # If we've run out of instructions
+            if index >= len(self._instructions):
+                break
+
+            # Wait for the set interval, if kill() is called before or during
+            #  the wait, then immediately break, otherwise continue as normal
+            if self._kill.wait(self._interval):
+                break
+
+        self._off()
+
+    def _run_instruction(self, index):
+        instruction = self._instructions[index]
+        if instruction == LED.ON:
+            self._on()
+        elif instruction == LED.OFF:
+            self._off()
+        elif instruction == LED.REPEAT:
+            return self._run_instruction(0)
+
+        return index + 1
+
+    def kill(self):
+        self._kill.set()
+        # Wait for the kill signal to be recognised
+        self.join()
