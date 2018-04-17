@@ -1,4 +1,11 @@
+import RPi.GPIO as GPIO
+
 import threading
+
+from led import LED
+from button import Button
+from printer import Printer
+from communications import AServerConnection
 
 class App:
 
@@ -8,35 +15,59 @@ class App:
         return thread
 
     LED_SIGNALS = {
-        'STARTUP': (1, '- - '),
-        'READY': (0.75, '-- -- -- ')
+        'STARTUP': (0.1, '- - '),
+        'READY': (0.75, '-- -- -- '),
+        'CONNECTING': (0.1, '- -   - -   *'),
+        'PRINTING': (0.5, '- - - *')
     }
 
-    def __init__(self, endpoints):
-        self.led = endpoints['led']
-        self.buttonA = endpoints['buttonA']
-        self.buttonB = endpoints['buttonB']
-        self.printer = endpoints['printer']
-        self.conn = endpoints['conn']
-
-    def _startup(self, config):
-        startup_kill = self.continous_led_signal('STARTUP')
-
-        startup_kill()
+    def __init__(self, config):
+        self._bootstrap(config)
         self.led_signal('READY')
 
-    def print_from_server(self, *_, **__):
-        response = self.conn.futures_read()
+    def _bootstrap(self, config):
+        GPIO.setmode(config['GPIO_MODE'])
 
-        response.add_done_callback(
-            lambda r: self.printer.batch_print(r.result())
+        # LED Setup
+        self.led = LED(config['LED'])
+        finished = self.continous_led_signal('STARTUP')
+
+        # Button Setup
+        self.buttonA = Button(config['BUTTON_A'])
+        self.buttonB = Button(config['BUTTON_B'])
+
+        self.buttonA.subscribe(self.print_from_server)
+        self.buttonB.subscribe(self.clear_server)
+
+        # Printer Setup
+        printer_config = config['PRINTER_CONNECTION']
+        self.printer = Printer(
+            printer_config['port'], printer_config['baudrate'],
+            timeout=printer_config['timeout']
         )
 
+        # Server Connection
+        self.conn = AServerConnection(config['SERVER'], config['PASSWORD'])
+
+        finished()
+
+    def print_from_server(self, *_, **__):
+        finished = self.continous_led_signal('CONNECTING')
+        response = self.conn.futures_read()
+
+        def print_response(r):
+            finished()
+            self.printer.batch_print(r.result())
+
+        response.add_done_callback(print_response)
+
     def clear_server(self, *_, **__):
-        self.conn.write('')
+        finished = self.continous_led_signal('CONNECTING')
+        response = self.conn.futures_write('')
+        response.add_done_callback(lambda *_, **__: finished())
 
     def led_signal(self, signal):
-        self.led.pattern(*self.LED_SIGNALS[signal])
+        return self.led.pattern(*self.LED_SIGNALS[signal])
 
     def continous_led_signal(self, signal):
         return self.led.repeated_pattern(*self.LED_SIGNALS[signal])

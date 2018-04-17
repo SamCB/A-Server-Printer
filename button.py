@@ -1,5 +1,7 @@
 import RPi.GPIO as GPIO
+
 import time
+import threading
 
 class Button:
 
@@ -7,9 +9,8 @@ class Button:
         self.pin = pin
 
         GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(self.pin, GPIO.RISING, bouncetime=200)
-
-        self.call_times = []
+        self.thread = _Button_Thread(self.pin)
+        self.thread.start()
 
     def subscribe(self, callback):
         index = len(self.call_times)
@@ -19,15 +20,42 @@ class Button:
             self.pin, lambda c: self._manual_debounce(index, lambda: callback(c))
         )
 
-    def _manual_debounce(self, index, callback, diff=0.2):
-        # Manual debounce checks the last time we had this particular callback
-        #  and if it was too recent, we ignore it
-        # For some reason the bouncetime argument to add_event_detect doesn't
-        #  seem to help too much
-        now = time.time()
-        if now - diff > self.call_times[index]:
-            self.call_times[index] = now
-            callback()
-
     def clear_subscriptions(self):
         GPIO.remove_event_detect(self.pin)
+
+class _Button_Thread(threading.Thread):
+    """
+    Important Note! Button Thread assumes someone is going to do the cleanup for it!
+    """
+    def __init__(self, pin):
+        super().__init__()
+        self.daemon = True
+
+        self.pin = pin
+
+        self.callback_lock = threading.Lock()
+        self.callbacks = []
+
+    def add_callback(self, callback):
+        with self.callback_lock:
+            self.callbacks.append(callback)
+
+    def clear_callbacks(self):
+        with self.callback_lock:
+            self.callbacks = []
+
+    def run(self):
+        while True:
+            try:
+                GPIO.wait_for_edge(self.pin, GPIO.FALLING)
+            except RuntimeError as e:
+                print("Error", e, "for pin", self.pin)
+                continue
+
+            start = time.time()
+            GPIO.wait_for_edge(self.pin, GPIO.RISING)
+            diff = time.time() - start
+            with self.callback_lock:
+                for callback in self.callbacks:
+                    callback(self.pin, diff)
+
