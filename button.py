@@ -20,10 +20,12 @@ class Button:
         )
 
     def _callback(self, callback):
-        start = time.time()
-        GPIO.wait_for_edge(self.pin, GPIO.FALLING, timeout=3000)
-        diff = time.time() - start
-        callback(self.pin, diff)
+        def wait_range(n, t):
+            for i in range(n):
+                yield i
+                time.sleep(t)
+
+        callback([GPIO.input(self.pin) for _ in wait_range(1000, 0.02)])
 
     def clear_subscriptions(self):
         GPIO.remove_event_detect(self.pin)
