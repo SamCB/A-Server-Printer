@@ -61,6 +61,10 @@ class App:
 
         response.add_done_callback(print_response)
 
+    def _wait_print_server(self, pin, time_held):
+        if time_held > 3:
+            self.clear_server()
+
     def clear_server(self, *_, **__):
         finished = self.continous_led_signal('CONNECTING')
         response = self.conn.futures_write('')
