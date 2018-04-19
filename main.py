@@ -3,7 +3,7 @@ import json
 import time
 import logging
 
-from app import App
+from app.app import App
 
 logger = logging.getLogger(__name__)
 
