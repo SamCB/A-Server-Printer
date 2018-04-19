@@ -84,7 +84,7 @@ class _LED_Thread(threading.Thread):
         self._on = led_on
         self._off = led_off
 
-        self._kill = self.Event()
+        self._kill = threading.Event()
 
     def run(self):
         self._off()
