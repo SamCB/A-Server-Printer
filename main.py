@@ -1,10 +1,11 @@
 import RPi.GPIO as GPIO
 import json
+import time
+import logging
 
-from led import LED
-from button import Button
-from printer import Printer
-from communications import AServerConnection
+from app import App
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = {
     'GPIO_MODE': GPIO.BCM,
@@ -20,60 +21,22 @@ DEFAULT_CONFIG = {
     'PASSWORD': 'SECRET'
 }
 
-
-def setup(config):
-    GPIO.setmode(config['GPIO_MODE'])
-
-    # LED Setup
-    led = LED(config['LED'])
-
-    # Printer Setup
-    p = config['PRINTER_CONNECTION']
-    printer = Printer(p['port'], p['baudrate'], timeout=p['timeout'])
-    printer.feed(1)
-
-    # Server Connection
-    conn = AServerConnection(config['SERVER'], config['PASSWORD'])
-
-
-    def clear_server(*_, **__):
-        print("CLEARING")
-        conn.write('')
-        print("Cleared")
-
-    # Button Setup
-    buttonA = Button(config['BUTTON_A'])
-    buttonB = Button(config['BUTTON_B'])
-
-    buttonA.subscribe(lambda _: ledA.flash(1))
-    buttonA.subscribe(print_from_server)
-
-    buttonB.subscribe(lambda _: ledB.flash(1))
-    buttonB.subscribe(lambda c: printer.async_println('c: {}'.format(c)))
-
-
-    return {
-        'led': led, 'buttonA': buttonA, 'buttonB': buttonB,
-        'printer': printer, 'conn': conn
-    }
-
-def teardown(val):
-    GPIO.cleanup()
-    val['printer'].cleanup()
-    val['conn'].cleanup()
-
 if __name__ == "__main__":
     try:
+        logger.info("Loading Config")
         with open('.config.json') as f:
             config = {**DEFAULT_CONFIG, **json.load(f)}
     except FileNotFoundError:
-        print('No config file found. Read through README for instructions on how to get started.')
+        logger.fatal('No config file found. Read through README for instructions on how to get started.')
     else:
+        logger.info("Config Loaded Startup App")
+        app = App(config)
+        logger.info("App Running")
         try:
-            val = setup(config)
-            input("Press enter to exit")
+            while True:
+                time.sleep(120)
         except KeyboardInterrupt:
             pass
         finally:
-            teardown(val)
+            app.teardown()
             print()

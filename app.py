@@ -1,18 +1,11 @@
 import RPi.GPIO as GPIO
 
-import threading
-
 from led import LED
 from button import Button
 from printer import Printer
 from communications import AServerConnection
 
 class App:
-
-    @classmethod
-    def start_threaded(cls, endpoints):
-        thread = threading.Thread(target=cls, args=(endpoints, ))
-        return thread
 
     LED_SIGNALS = {
         'STARTUP': (0.1, '- - '),
@@ -75,3 +68,8 @@ class App:
 
     def continous_led_signal(self, signal):
         return self.led.repeated_pattern(*self.LED_SIGNALS[signal])
+
+    def teardown(self):
+        GPIO.cleanup()
+        self.printer.cleanup()
+        self.conn.cleanup()
