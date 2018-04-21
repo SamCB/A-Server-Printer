@@ -48,7 +48,7 @@ class AServerConnection:
         return self._parse_response(response)
 
     def futures_write(self, note):
-        return self.executor.submit(self.write, (note,))
+        return self.executor.submit(self.write, note)
 
     def cleanup(self):
         self.executor.shutdown()
