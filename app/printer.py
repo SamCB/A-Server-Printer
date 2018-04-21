@@ -1,4 +1,4 @@
-from Adafruit_Thermal import Adafruit_Thermal
+from .Adafruit_Thermal import Adafruit_Thermal
 
 import threading
 import queue

@@ -15,7 +15,8 @@ class AServerConnection:
     def __init__(self, server, password):
         self.endpoint = '{}/note'.format(server)
         self.headers = {
-            'auth': password
+            'auth': password,
+            'User-Agent': 'A-Server Themral Printer 0.1'
         }
         self.executor = ThreadPoolExecutor()
 

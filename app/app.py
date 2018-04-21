@@ -1,9 +1,9 @@
 import RPi.GPIO as GPIO
 
-from led import LED
-from button import Button
-from printer import Printer
-from communications import AServerConnection
+from .led import LED
+from .button import Button
+from .printer import Printer
+from .communications import AServerConnection
 
 class App:
 
