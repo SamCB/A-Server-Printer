@@ -9,13 +9,39 @@ Currently a work in progress.
 
 ## Getting Started
 
+### Hardware Dependencies
+
+* Rasbperry Pi installed with Raspbian and internet/wifi connection
+* [Adafruit Mini Thermal Receipt Printer](https://www.adafruit.com/product/597)
+* 1x LED
+* 2x Momentary Push Switches
+
 ### Software Dependencies
+
+To run as I wrote it (for retrieving from [A Server](https://github.com/SamCB/A-Server)) you will need 
 
 * Python 3
 * RPi.GPIO
-* Python Requests
+* [Python Requests](http://docs.python-requests.org/en/master/)
+* An instance of [A Server](https://github.com/SamCB/A-Server) running up on AWS lambda
 
-### Setup
+And optionally:
+
+* [Emoji2Text](https://github.com/SamCB/Emoji2Text) - A library I wrote to replace emoji with their text based version. Without it, will just print a few question marks when you come to emoji.
+
+Of course, it should be pretty easy to repurpose the software to communicate with something else.
+Just re-implement the `AServerConnection` object in `communications` to connect to whatever endpoint you want using whatever library you want.
+
+### Hardware Setup
+
+* Printer Input to Pi Tx
+* Printer Ground to Pi Ground
+* Printer Output disconnected (I wasn't able to get this working, if connected, needs a resistor)
+* "Print" button to pin 23 (BCM)
+* "Clear Server" button to pin 24 (BCM)
+* LED to pin 25 (BCM)
+
+### Software Setup
 
 Copy `.config.example.json` to `.config.json`.
 Change variables to your local setup.
@@ -42,5 +68,7 @@ You can add any extra config defined in `DEFAULT_CONFIG` of `main.py`.
 
     And remove any `console=serial0,xxxxxx` style setting.
     Do not remove `console=tty1`.
+
+    Restart the Raspberry Pi.
 
     Printing should now behave as expected.
