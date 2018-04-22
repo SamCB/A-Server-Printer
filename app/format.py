@@ -1,7 +1,11 @@
+from .printer_logging import get_logger
+logger = get_logger(__name__)
+
 try:
     from emoji2text import emoji2text
 except ImportError:
     # If emoji2text isn't installed, we still want it to work
+    logger.warning("Emoji2text is not installed. Formatting errors may occur")
     emoji2text = lambda x, *_: x
 
 def format(msg, width):

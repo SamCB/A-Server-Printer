@@ -1,11 +1,12 @@
 import RPi.GPIO as GPIO
 import json
 import time
-import logging
+from os import path
 
+from app.printer_logging import get_logger
 from app.app import App
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 DEFAULT_CONFIG = {
     'GPIO_MODE': GPIO.BCM,
@@ -21,10 +22,12 @@ DEFAULT_CONFIG = {
     'PASSWORD': 'SECRET'
 }
 
+CONFIG = path.join(path.dirname(path.abspath(__file__)), '.config.json')
+
 if __name__ == "__main__":
     try:
-        logger.info("Loading Config")
-        with open('.config.json') as f:
+        logger.info("Loading Config from: %s", CONFIG)
+        with open(CONFIG) as f:
             config = {**DEFAULT_CONFIG, **json.load(f)}
     except FileNotFoundError:
         logger.fatal('No config file found. Read through README for instructions on how to get started.')
