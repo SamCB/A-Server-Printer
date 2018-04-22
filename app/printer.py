@@ -3,7 +3,8 @@ from .Adafruit_Thermal import Adafruit_Thermal
 import threading
 import queue
 import time
-import re
+
+from .format import format as fmt
 
 class _ShutDownPrinter:
     pass
@@ -51,34 +52,15 @@ class Printer(Adafruit_Thermal):
         #  wait for a second before continuing.
         # Characters and timing is from rough trial and error. They seem
         #  to work.
-        message = _clean_message(message)
+        message = fmt(message, self.maxColumn)
         while message:
             sub, message = message[:180], message[180:]
-            self.line_split_print(sub)
+            self.async_print(sub)
             self.async_wait(1)
         self.async_println()
         self.async_feed(3)
-
-    def line_split_print(self, message):
-        def find_last_break(message):
-            try:
-                match = list(re.finditer(r"[ \n\t]", message))
-                return match[-1].start(), match[-1].end(), '\n'
-            except IndexError:
-                return len(message), len(message), ''
-
-        while message:
-            break_at, start_at, end = find_last_break(message[:self.maxColumn])
-            self.async_print(message[:break_at] + end)
-            print(message[:self.maxColumn])
-            print(message[:break_at])
-            print(break_at, start_at)
-            message = message[start_at:]
 
     def cleanup(self):
         self._print_queue.put(_ShutDownPrinter())
         self.thread.join()
 
-def _clean_message(message):
-    """Remove all bytes greater than 128"""
-    return ''.join(b if ord(b) < 128 else '?' for b in message)
