@@ -1,10 +1,5 @@
 import RPi.GPIO as GPIO
 
-from .led import LED
-from .button import Button
-from .printer import Printer
-from .communications import AServerConnection
-
 class App:
 
     LED_SIGNALS = {
@@ -19,13 +14,17 @@ class App:
         self.led_signal('READY')
 
     def _bootstrap(self, config):
+        # I'm running the imports inside this function so the LED can start
+        #  blinking sooner so I know something is happening
         GPIO.setmode(config['GPIO_MODE'])
 
         # LED Setup
+        from .led import LED
         self.led = LED(config['LED'])
         finished = self.continous_led_signal('STARTUP')
 
         # Button Setup
+        from .button import Button
         self.buttonA = Button(config['BUTTON_A'])
         self.buttonB = Button(config['BUTTON_B'])
 
@@ -33,6 +32,7 @@ class App:
         self.buttonB.subscribe(self.clear_server)
 
         # Printer Setup
+        from .printer import Printer
         printer_config = config['PRINTER_CONNECTION']
         self.printer = Printer(
             printer_config['port'], printer_config['baudrate'],
@@ -40,6 +40,7 @@ class App:
         )
 
         # Server Connection
+        from .communications import AServerConnection
         self.conn = AServerConnection(config['SERVER'], config['PASSWORD'])
 
         finished()
