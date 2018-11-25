@@ -43,7 +43,20 @@ Pins for the buttons and LED can be changed in `.config.json` (see Software Setu
 
 ### Software Setup
 
-Copy `.config.example.json` to `.config.json`.
+Firstly, setup the connection to the printer to allow us to communicate over serial.
+Open up terminal and type:
+
+    sudo raspi-config
+    
+A menu will come up, select `Interfacing Options`, then `Serial`.
+For the first question "Would you like a login shell to be accessible over serial?" select `<No>`.
+For the second question "Would you like the serial port hardware to be enabled?" select `<Yes>`.
+
+A screen will pop up, it should say "The serial login shell is disabled" and "The serial interface is enabled".
+If it doesn't something was set up wrong, try running the config again.
+When finished, exit and reboot.
+
+Then copy `.config.example.json` to `.config.json`.
 Change variables to your local setup.
 You can add any extra config defined in `DEFAULT_CONFIG` of `main.py`.
 
