@@ -1,0 +1,33 @@
+#! /bin/sh -e
+
+DIR=$(cd "$(dirname "$0")" && pwd)
+
+cat <<EOF > /etc/init.d/piprinter
+#! /bin/sh
+# /etc/init.d/piprinter
+
+### BEGIN INIT INFO
+# Provides:          piprinter
+# Required-Start:    \$remote_fs \$syslog
+# Required-Stop:     \$remote_fs \$syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start up the thermal printer connected to a raspberry pi
+### END INIT INFO
+
+case "\$1" in
+  start)
+    echo "Starting Printer"
+    python3 $DIR/main.py &
+    ;;
+  *)
+    echo "Usage: /etc/init.d/piprinter start"
+    exit 1
+    ;;
+esac
+
+exit 0
+EOF
+
+sudo chmod 755 /etc/init.d/piprinter
+sudo update-rc.d piprinter defaults

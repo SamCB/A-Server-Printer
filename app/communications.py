@@ -15,7 +15,8 @@ class AServerConnection:
     def __init__(self, server, password):
         self.endpoint = '{}/note'.format(server)
         self.headers = {
-            'auth': password
+            'auth': password,
+            'User-Agent': 'A-Server Themral Printer 0.1'
         }
         self.executor = ThreadPoolExecutor()
 
@@ -47,7 +48,7 @@ class AServerConnection:
         return self._parse_response(response)
 
     def futures_write(self, note):
-        return self.executor.submit(self.write, (note,))
+        return self.executor.submit(self.write, note)
 
     def cleanup(self):
         self.executor.shutdown()
