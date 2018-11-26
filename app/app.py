@@ -48,7 +48,7 @@ class App:
         from .printer import Printer
         if config['PRINTER_POWER'] > 0:
             GPIO.setup(config['PRINTER_POWER'], GPIO.OUTPUT)
-            GPIO.setup(config['PRINTER_POWER'], GPIO.HIGH)
+            GPIO.output(config['PRINTER_POWER'], GPIO.HIGH)
 
         printer_config = config['PRINTER_CONNECTION']
         self.printer = Printer(
