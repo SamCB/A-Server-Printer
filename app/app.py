@@ -33,6 +33,11 @@ class App:
         self.buttonB.subscribe(self.clear_server)
 
         # Printer Setup
+        if config['PRINTER_POWER'] > 0:
+            # Connection arguments passed to the pi pri
+            GPIO.setup(config['PRINTER_POWER'], GPIO.OUTPUT)
+            GPIO.setup(config['PRINTER_POWER'], GPIO.HIGH)
+
         printer_config = config['PRINTER_CONNECTION']
         self.printer = Printer(
             printer_config['port'], printer_config['baudrate'],
